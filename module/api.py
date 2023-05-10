@@ -6,7 +6,7 @@ sys.path.append(str(ABS_PATH))
 
 import requests, asyncio
 from typing import Union, List, Dict
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, Form
 from pydantic import BaseModel
 from module.parser import Parser
 from module.summary import summarize_text, get_final_answer, fast_summarize, one_one_simi
@@ -14,9 +14,9 @@ from module.summary import summarize_text, get_final_answer, fast_summarize, one
 # TODO: authentication
 
 class PostData(BaseModel):
-    document: str = ''
     question: str = ''
-    url = ''
+    url:str = ''
+    text:str = ''
 
     class Config:
         extra = 'ignore'
@@ -39,6 +39,15 @@ DETAIL_URL = CRAWLER_URL + '/play_spider/request'
 def get_ems(sentences):
     ...
 
+@app.post('/john_chat/chat_text')
+async def john_chat_text(post_data: PostData):
+    text = post_data.text
+    question = post_data.question
+
+    # 解析文本出结果
+    summary = fast_summarize(text, question)
+    return summary
+
 
 @app.post('/john_chat/chat_url')
 async def john_chat_url(post_data: PostData):
@@ -50,31 +59,31 @@ async def john_chat_url(post_data: PostData):
     }
     resp = requests.post(DETAIL_URL, json=form)
     document = resp.json()[0]['content']
-    parser = Parser()
-    content = parser.parse_text(document)
+
+    # 解析文本出结果
+    content = Parser.parse_text(document)
     # summary = summarize_text(content, question)
     summary = fast_summarize(content, question)
-    if not summary:
-        return '无可奉告，还是另请高明吧。'
+    
     return summary
 
-@app.post('/john_chat/')
-async def john_chat(post_data: PostData):
-    document = post_data.document
-    question = post_data.question
-    parser = Parser()
-    content = parser.parse_text(document)
+
+@app.post('/john_chat/chat_document')
+# document 参数使用UploadFile后面支持更多扩展
+async def john_chat(document:UploadFile | None = None, question:str=Form()):
+    # 解析文本出结果
+    content = Parser.parse_document(document)
     # summary = summarize_text(content, question)
     summary = fast_summarize(content, question)
-    if not summary:
-        return '无可奉告，还是另请高明吧。'
     return summary
+
 
 @app.get('/john_search/')
 async def john_search(request: Request):
     query = request.query_params.get('q')
     question = request.query_params.get('question')
     engine = request.query_params.get('engine')
+
     if engine == 'searx':
         params = {'q': query, 'format': 'json'}
         res = requests.get(SEARX_URL, params=params)
@@ -88,6 +97,7 @@ async def john_search(request: Request):
         res = requests.get(INDEX_URL, params=params)
         res = res.json()
         result = res['result']
+
     form = {'tasks': result}
     res = requests.post(DETAIL_URL, json=form)
     res = res.json()
@@ -102,6 +112,7 @@ async def john_search(request: Request):
         if summary:
             summaries.append({'url': url, 'summary': summary})
     return summaries
+
 
 if __name__ == '__main__':
     import uvicorn
