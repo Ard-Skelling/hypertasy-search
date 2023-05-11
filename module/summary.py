@@ -26,7 +26,7 @@ class ChatGLMSummary(Summary):
     async def summarize_text(self, text, question):
         ...
 
-def fast_summarize(text, question, c_ems_md5):
+def fast_summarize(text, question, c_ems_md5 = ""):
     if not text:
         return
     chunks = list(split_text_overlapping(text, max_length=300, overlapping=30))
