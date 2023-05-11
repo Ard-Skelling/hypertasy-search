@@ -10,6 +10,8 @@ from fastapi import FastAPI, Request, UploadFile, Form
 from pydantic import BaseModel
 from module.parser import Parser
 from module.summary import summarize_text, get_final_answer, fast_summarize, one_one_simi
+from data_storage import RedisClient
+from utils import get_md5
 
 # TODO: authentication
 
@@ -43,9 +45,11 @@ def get_ems(sentences):
 async def john_chat_text(post_data: PostData):
     text = post_data.text
     question = post_data.question
+    # 暂时计算，后面交由前端完成
+    c_ems_md5 = get_md5(text)
 
     # 解析文本出结果
-    summary = fast_summarize(text, question)
+    summary = fast_summarize(text, question, c_ems_md5)
     return summary
 
 
@@ -53,17 +57,26 @@ async def john_chat_text(post_data: PostData):
 async def john_chat_url(post_data: PostData):
     url = post_data.url
     question = post_data.question
-    task = {'url': url}
-    form = {
-        'tasks': task
-    }
-    resp = requests.post(DETAIL_URL, json=form)
-    document = resp.json()[0]['content']
 
-    # 解析文本出结果
-    content = Parser.parse_text(document)
+    # 暂时计算，后面交由前端完成
+    c_ems_md5 = get_md5(url)
+
+    if not (c_ems_string := RedisClient().conn.get(c_ems_md5)):
+        task = {'url': url}
+        form = {
+            'tasks': task
+        }
+        resp = requests.post(DETAIL_URL, json=form)
+        document = resp.json()[0]['content']
+
+        # 解析文本出结果
+        content = Parser.parse_text(document)
+        RedisClient().conn.set(c_ems_md5 + "url", content, ex=700)
+
+    else:
+        content = RedisClient().conn.get(c_ems_md5 + "url").decode('utf-8')
     # summary = summarize_text(content, question)
-    summary = fast_summarize(content, question)
+    summary = fast_summarize(content, question, c_ems_md5)
     
     return summary
 
@@ -73,8 +86,10 @@ async def john_chat_url(post_data: PostData):
 async def john_chat(document:UploadFile, question:str=Form()):
     # 解析文本出结果
     content = Parser.parse_document(document)
+    # 暂时计算，后面交由前端完成
+    c_ems_md5 = get_md5(content)
     # summary = summarize_text(content, question)
-    summary = fast_summarize(content, question)
+    summary = fast_summarize(content, question, c_ems_md5)
     return summary
 
 

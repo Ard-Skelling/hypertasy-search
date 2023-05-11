@@ -10,7 +10,6 @@ ABS_PATH = Path(__file__).parent.parent
 sys.path.append(str(ABS_PATH))
 
 from data_storage import RedisClient
-from utils import get_md5
 
 
 ChatGLM_API = 'http://127.0.0.1:8001'
@@ -27,13 +26,11 @@ class ChatGLMSummary(Summary):
     async def summarize_text(self, text, question):
         ...
 
-def fast_summarize(text, question):
+def fast_summarize(text, question, c_ems_md5):
     if not text:
         return
     chunks = list(split_text_overlapping(text, max_length=300, overlapping=30))
 
-    # 暂时计算，后面交由前端完成
-    c_ems_md5 = get_md5(text)
     chunks, scores = get_top_n(chunks, question, 5, c_ems_md5=c_ems_md5)
 
     collection = []
