@@ -71,7 +71,7 @@ class RedisClient:
             with RedisClient._instance_lock:
                 if not hasattr(cls, "_instance"):
                     cls._instance = super().__new__(cls)
-                    cls._instance.conn_pool = redis.ConnectionPool(host=REDIS_HOST, port=6380, db=0, password=REDIS_PASSWORD, max_connections=10)
+                    cls._instance.conn_pool = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=0, password=REDIS_PASSWORD, max_connections=10)
         return cls._instance
 
     def __init__(self):
