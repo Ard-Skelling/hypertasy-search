@@ -1,0 +1,20 @@
+version: "3"
+services:
+  app:
+    build: .
+    environment:
+      RUN_ENV: dev
+    depends_on:
+      - redis
+    links: 
+      - redis:redis
+    ports:
+      - "8000:8000"
+  redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6380:6380"
+    volumes: 
+      - /root/redis/data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf

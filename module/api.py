@@ -70,7 +70,7 @@ async def john_chat_url(post_data: PostData):
 
 @app.post('/john_chat/chat_document')
 # document 参数使用UploadFile后面支持更多扩展
-async def john_chat(document:UploadFile | None = None, question:str=Form()):
+async def john_chat(document:UploadFile, question:str=Form()):
     # 解析文本出结果
     content = Parser.parse_document(document)
     # summary = summarize_text(content, question)
