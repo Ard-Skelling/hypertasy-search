@@ -2,7 +2,7 @@
 Author: anzaikk 599957546@qq.com
 Date: 2023-05-06 20:54:22
 LastEditors: anzaikk 599957546@qq.com
-LastEditTime: 2023-05-10 20:50:48
+LastEditTime: 2023-05-11 13:58:47
 FilePath: /hypertasy-search/data_storage/storage.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -22,6 +22,7 @@ import redis
 # 开发环境密码
 REDIS_PASSWORD = 123123
 REDIS_HOST = "172.17.34.175"
+REDIS_PORT = 6380
 
 
 # class ClientSingleton(type):
@@ -70,7 +71,7 @@ class RedisClient:
             with RedisClient._instance_lock:
                 if not hasattr(cls, "_instance"):
                     cls._instance = super().__new__(cls)
-                    cls._instance.conn_pool = redis.ConnectionPool(host=REDIS_HOST, port=6379, db=0, password=REDIS_PASSWORD, max_connections=10)
+                    cls._instance.conn_pool = redis.ConnectionPool(host=REDIS_HOST, port=6380, db=0, password=REDIS_PASSWORD, max_connections=10)
         return cls._instance
 
     def __init__(self):
