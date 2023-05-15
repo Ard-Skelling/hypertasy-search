@@ -28,7 +28,7 @@ class ChatGLMSummary(Summary):
 
 def fast_summarize(text, question, c_ems_md5 = ""):
     if not text:
-        return
+        return '无可奉告，还是另请高明吧。'
     chunks = list(split_text_overlapping(text, max_length=300, overlapping=30))
 
     chunks, scores = get_top_n(chunks, question, 5, c_ems_md5=c_ems_md5)
@@ -41,7 +41,7 @@ def fast_summarize(text, question, c_ems_md5 = ""):
     chunks = '\n'.join(collection)
 
     if not chunks:
-        return
+        return '无可奉告，还是另请高明吧。'
     
     prompt = create_message(chunks, question)
     r = requests.post(ChatGLM_API, json=prompt)
