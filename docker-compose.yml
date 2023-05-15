@@ -9,7 +9,7 @@ services:
     links: 
       - redis:redis
     ports:
-      - "8000:8000"
+      - "8003:8003"
   redis:
     image: redis:7.0-alpine
     ports:

@@ -49,8 +49,8 @@ class WebTask(BaseModel):
     class Config:
         extra = 'allow'
 
-CRAWLER_URL = 'http://127.0.0.1:8002'
-NLP_URL = 'http://127.0.0.1:8001'
+CRAWLER_URL = 'http://39.104.82.158:8002'
+NLP_URL = 'http://39.104.82.158:8001'
 INDEX_URL = CRAWLER_URL + '/bing_spider/search'
 SEARX_URL = 'http://54.151.16.174:8888/search'
 DETAIL_URL = CRAWLER_URL + '/play_spider/request'
