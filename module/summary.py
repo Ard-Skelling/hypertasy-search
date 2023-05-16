@@ -12,7 +12,7 @@ sys.path.append(str(ABS_PATH))
 from data_storage import RedisClient
 
 
-ChatGLM_API = 'http://127.0.0.1:8001'
+ChatGLM_API = 'http://39.104.82.158:8001'
 EMBEDDING_API = ChatGLM_API + '/tbc_embedding'
 
 
@@ -29,7 +29,7 @@ class ChatGLMSummary(Summary):
 def fast_summarize(text, question, c_ems_md5 = ""):
     if not text:
         return '无可奉告，还是另请高明吧。'
-    chunks = list(split_text_overlapping(text, max_length=300, overlapping=30))
+    chunks = list(split_text_overlapping(text, max_length=500, overlapping=20))
 
     chunks, scores = get_top_n(chunks, question, 5, c_ems_md5=c_ems_md5)
 
