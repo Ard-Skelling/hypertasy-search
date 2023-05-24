@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-import requests, re
+import requests, re, json
 import torch
 import torch.nn.functional as F
 from pydantic import BaseModel
@@ -11,8 +11,8 @@ sys.path.append(str(ABS_PATH))
 
 from data_storage import RedisClient
 
-
 ChatGLM_API = 'http://39.104.82.158:8001'
+ChatGLM_API = 'http://47.92.81.63:9527'
 EMBEDDING_API = ChatGLM_API + '/tbc_embedding'
 
 
@@ -29,7 +29,7 @@ class ChatGLMSummary(Summary):
 def fast_summarize(text, question, c_ems_md5 = ""):
     if not text:
         return '无可奉告，还是另请高明吧。'
-    chunks = list(split_text_overlapping(text, max_length=500, overlapping=20))
+    chunks = list(split_text_overlapping(text, max_length=400, overlapping=20))
 
     chunks, scores = get_top_n(chunks, question, 5, c_ems_md5=c_ems_md5)
 
@@ -42,7 +42,8 @@ def fast_summarize(text, question, c_ems_md5 = ""):
 
     if not chunks:
         return '无可奉告，还是另请高明吧。'
-    
+    if len(chunks) > 2048:
+        return summarize_text(chunks, question)
     prompt = create_message(chunks, question)
     r = requests.post(ChatGLM_API, json=prompt)
     summary = r.json()['response']
@@ -201,7 +202,7 @@ def split_text_overlapping(text, max_length=1024, overlapping=200):
 
 def create_message(chunk, question):
     return {
-        "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容, 回答下面的问题: "{question}"\n--以"回答：xxx"的格式返回结果。如果没有答案，返回"无可奉告，还是另请高明吧。"'
+        "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容，一步步推理，回答下面的问题: "{question}"\n--以"回答：xxx"的格式返回结果。答案尽量精确，如果没有答案，寻找最有可能的答案，返回"推测最有可能的答案是：" + 可能的回答'
     }
 
 # def create_message(chunk, question):
@@ -221,6 +222,28 @@ def create_prompt(summary_list, question):
 #     if ratio < 0 or ratio > 1:
 #         raise ValueError("Percentage should be between 0 and 1")
 #     driver.execute_script(f"window.scrollTo(0, document.body.scrollHeight * {ratio});")
+
+def enhance_search_keywords(question):
+    prompt = f'''
+        你是约翰小助手。你收到了如下问题：
+        {question}
+        将问题分解为一个或多个用于在搜索引擎中进行搜索关键词。以“[关键词1, 关键词2, 关键词3]”的JSON形式返回用于搜索的关键词。回答尽量简洁。
+    '''
+    form = {'prompt': prompt}
+    r = requests.post(ChatGLM_API, json=form)
+    keywords = r.json()['response']
+    keywords = re.findall('\[.*?\]', keywords, re.S)
+    if not keywords:
+        return [question]
+    all_kws = []
+    for kw_group in keywords:
+        kws = re.sub('"|“|”', '', kw_group)
+        kws = re.split(',|，', kws, re.S)
+        all_kws += kws
+    keywords = [k.strip() for k in all_kws]
+    # keywords = [kw.strip() for kw in keywords.split('|')]
+    # keywords = json.loads(keywords)
+    return keywords
 
 
 if __name__ == '__main__':
