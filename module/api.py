@@ -4,12 +4,12 @@ from pathlib import Path
 ABS_PATH = Path(__file__).parent.parent
 sys.path.append(str(ABS_PATH))
 
-import requests, asyncio
+import requests, asyncio, re
 from typing import Union, List, Dict
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from module.parser import Parser
-from module.summary import summarize_text, get_final_answer, fast_summarize, one_one_simi
+from module.summary import summarize_text, get_final_answer, fast_summarize, one_one_simi, enhance_search_keywords
 
 # TODO: authentication
 
@@ -31,6 +31,7 @@ class WebTask(BaseModel):
 
 CRAWLER_URL = 'http://127.0.0.1:8002'
 NLP_URL = 'http://127.0.0.1:8001'
+# NLP_URL = 'http://47.92.81.63:9527'
 INDEX_URL = CRAWLER_URL + '/bing_spider/search'
 SEARX_URL = 'http://54.151.16.174:8888/search'
 DETAIL_URL = CRAWLER_URL + '/play_spider/request'
@@ -70,6 +71,16 @@ async def john_chat(post_data: PostData):
         return '无可奉告，还是另请高明吧。'
     return summary
 
+@app.post('/chat_text/')
+async def john_chat(post_data: PostData):
+    document = post_data.document
+    question = post_data.question
+    # summary = summarize_text(content, question)
+    summary = fast_summarize(document, question)
+    if not summary:
+        return '无可奉告，还是另请高明吧。'
+    return summary
+
 @app.get('/john_search/')
 async def john_search(request: Request):
     query = request.query_params.get('q')
@@ -88,7 +99,8 @@ async def john_search(request: Request):
         res = requests.get(INDEX_URL, params=params)
         res = res.json()
         result = res['result']
-    form = {'tasks': result}
+    # 增加最大爬虫任务上限为10
+    form = {'tasks': result[:10]}
     res = requests.post(DETAIL_URL, json=form)
     res = res.json()
     parser = Parser()
@@ -102,6 +114,58 @@ async def john_search(request: Request):
         if summary:
             summaries.append({'url': url, 'summary': summary})
     return summaries
+
+@app.get('/light_search/')
+async def light_search(request: Request):
+    query = request.query_params.get('q')
+    question = request.query_params.get('question') or query
+    search_kws = enhance_search_keywords(question)
+    short_kws = []
+    long_kws = []
+    for kw in search_kws:
+        if len(kw) <= 3:
+            short_kws.append(kw)
+        else:
+            long_kws.append(kw)
+    long_kws.append(' '.join(short_kws))
+    long_kws = [kw for kw in long_kws if re.findall('[一-龥a-zA-Z]', kw)][:5]
+    final_result = []
+    final_res = []
+    engine = request.query_params.get('engine')
+    for kw in long_kws:
+        if engine == 'searx':
+            params = {'q': kw, 'format': 'json'}
+            res = requests.get(SEARX_URL, params=params)
+            res = res.json()
+            res = res['results']
+            if not res:
+                return '无可奉告，还是另请高明吧。'
+            result = [r.get('content') for r in res if r.get('content')]
+            temp = []
+            for r in res:
+                temp.append({
+                    'url': r.get('pretty_url', ''),
+                    'snippet': r.get('content', '')
+                })
+            res = temp
+        else:
+            params = {'q': kw}
+            res = requests.get(INDEX_URL, params=params)
+            res = res.json()
+            res = res['result']
+            if not res:
+                return '无可奉告，还是另请高明吧。'
+            result = [r['snippet'] for r in res if r.get('snippet')]
+            for r in res:
+                r.pop('title')
+    final_result += result
+    final_res += res
+    final_result = '\n'.join(final_result)
+    summary = fast_summarize(final_result, question)
+    if summary:
+        return {'summary': summary, 'refer': final_res}
+    else:
+        return {'summary': '无可奉告，还是另请高明吧。', 'refer': []}
 
 if __name__ == '__main__':
     import uvicorn

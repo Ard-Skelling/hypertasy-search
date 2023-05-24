@@ -1,9 +1,10 @@
-import requests, re
+import requests, re, os
 import torch
 import torch.nn.functional as F
 
 
 ChatGLM_API = 'http://127.0.0.1:8001'
+# ChatGLM_API = 'http://47.92.81.63:9527'
 EMBEDDING_API = ChatGLM_API + '/tbc_embedding'
 
 
@@ -17,10 +18,29 @@ class ChatGLMSummary(Summary):
     async def summarize_text(self, text, question):
         ...
 
+# def fast_summarize(text, question):
+#     if not text:
+#         return
+#     chunks = list(split_text_overlapping(text, max_length=300, overlapping=30))
+#     chunks, scores = get_top_n(chunks, question, 5)
+#     collection = []
+#     for i in range(len(scores)):
+#         if scores[i] >= 0.3:
+#             collection.append(chunks[i])
+#     chunks = '\n'.join(collection)
+#     if not chunks:
+#         return
+#     prompt = create_message(chunks, question)
+#     r = requests.post(ChatGLM_API, json=prompt)
+#     summary = r.json()['response']
+#     return summary
+
+
+# openai
 def fast_summarize(text, question):
     if not text:
         return
-    chunks = list(split_text_overlapping(text, max_length=300, overlapping=30))
+    chunks = list(split_text_overlapping(text, max_length=400, overlapping=20))
     chunks, scores = get_top_n(chunks, question, 5)
     collection = []
     for i in range(len(scores)):
@@ -29,6 +49,8 @@ def fast_summarize(text, question):
     chunks = '\n'.join(collection)
     if not chunks:
         return
+    if len(chunks) > 2048:
+        return summarize_text(chunks, question)
     prompt = create_message(chunks, question)
     r = requests.post(ChatGLM_API, json=prompt)
     summary = r.json()['response']
@@ -170,15 +192,15 @@ def split_text_overlapping(text, max_length=1024, overlapping=200):
 
 
 
-def create_message(chunk, question):
-    return {
-        "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容, 回答下面的问题: "{question}"\n--以"回答：xxx"的格式返回结果。如果没有答案，返回"无可奉告，还是另请高明吧。"'
-    }
-
 # def create_message(chunk, question):
 #     return {
-#         "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容和你的知识, 回答下面的问题: "{question}" -- 以"回答：xxx。依据：xxx"的格式返回结果'
+#         "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容, 回答下面的问题: "{question}"\n--以"回答：xxx"的格式返回结果。如果没有答案，返回"无可奉告，还是另请高明吧。"'
 #     }
+
+def create_message(chunk, question):
+    return {
+        "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容和你的知识, 回答下面的问题: "{question}" -- 以"回答：xxx。依据：xxx"的格式返回结果'
+    }
 
 def create_prompt(summary_list, question):
     prompt = '# 内容开始\n'
@@ -192,6 +214,18 @@ def create_prompt(summary_list, question):
 #     if ratio < 0 or ratio > 1:
 #         raise ValueError("Percentage should be between 0 and 1")
 #     driver.execute_script(f"window.scrollTo(0, document.body.scrollHeight * {ratio});")
+
+def enhance_search_keywords(question):
+    prompt = f'''
+        你是约翰小助手。你收到了如下问题：
+        {question}
+        将问题分解为一个或多个用于在搜索引擎中进行搜索关键词。返回用于搜索的关键词，以|对关键词进行分格。
+    '''
+    form = {'prompt': prompt}
+    r = requests.post(ChatGLM_API, json=form)
+    keywords = r.json()['response']
+    keywords = [kw.strip() for kw in keywords.split('|')]
+    return keywords
 
 
 if __name__ == '__main__':
