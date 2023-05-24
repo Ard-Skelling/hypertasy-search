@@ -12,7 +12,7 @@ sys.path.append(str(ABS_PATH))
 from data_storage import RedisClient
 
 ChatGLM_API = 'http://39.104.82.158:8001'
-ChatGLM_API = 'http://47.92.81.63:9527'
+ChatGLM_API = 'http://47.92.115.31:9527'
 EMBEDDING_API = ChatGLM_API + '/tbc_embedding'
 
 
