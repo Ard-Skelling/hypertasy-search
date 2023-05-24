@@ -1,4 +1,4 @@
-import requests, re, os
+import requests, re, json
 import torch
 import torch.nn.functional as F
 
@@ -192,15 +192,15 @@ def split_text_overlapping(text, max_length=1024, overlapping=200):
 
 
 
-# def create_message(chunk, question):
-#     return {
-#         "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容, 回答下面的问题: "{question}"\n--以"回答：xxx"的格式返回结果。如果没有答案，返回"无可奉告，还是另请高明吧。"'
-#     }
-
 def create_message(chunk, question):
     return {
-        "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容和你的知识, 回答下面的问题: "{question}" -- 以"回答：xxx。依据：xxx"的格式返回结果'
+        "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容，一步步推理，回答下面的问题: "{question}"\n--以"回答：xxx"的格式返回结果。答案尽量精确，如果没有答案，寻找最有可能的答案，返回"推测最有可能的答案是：" + 可能的回答'
     }
+
+# def create_message(chunk, question):
+#     return {
+#         "prompt": f'"""# 内容开始\n{chunk}\n# 内容结束"""\n根据上述内容和你的知识, 回答下面的问题: "{question}" -- 以"回答：xxx。依据：xxx"的格式返回结果'
+#     }
 
 def create_prompt(summary_list, question):
     prompt = '# 内容开始\n'
@@ -219,12 +219,22 @@ def enhance_search_keywords(question):
     prompt = f'''
         你是约翰小助手。你收到了如下问题：
         {question}
-        将问题分解为一个或多个用于在搜索引擎中进行搜索关键词。返回用于搜索的关键词，以|对关键词进行分格。
+        将问题分解为一个或多个用于在搜索引擎中进行搜索关键词。以“[关键词1, 关键词2, 关键词3]”的JSON形式返回用于搜索的关键词。回答尽量简洁。
     '''
     form = {'prompt': prompt}
     r = requests.post(ChatGLM_API, json=form)
     keywords = r.json()['response']
-    keywords = [kw.strip() for kw in keywords.split('|')]
+    keywords = re.findall('\[.*?\]', keywords, re.S)
+    if not keywords:
+        return [question]
+    all_kws = []
+    for kw_group in keywords:
+        kws = re.sub('"|“|”', '', kw_group)
+        kws = re.split(',|，', kws, re.S)
+        all_kws += kws
+    keywords = [k.strip() for k in all_kws]
+    # keywords = [kw.strip() for kw in keywords.split('|')]
+    # keywords = json.loads(keywords)
     return keywords
 
 

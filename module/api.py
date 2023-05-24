@@ -84,7 +84,52 @@ async def john_chat(post_data: PostData):
 @app.get('/john_search/')
 async def john_search(request: Request):
     query = request.query_params.get('q')
-    question = request.query_params.get('question')
+    question = request.query_params.get('question') or query
+    engine = request.query_params.get('engine')
+    if engine == 'searx':
+        params = {'q': query, 'format': 'json'}
+        res = requests.get(SEARX_URL, params=params)
+        res = res.json()
+        res = res['results']
+        if not res:
+            return '无可奉告，还是另请高明吧。'
+        result = [{'url': r.get('pretty_url')} for r in res if r.get('pretty_url')]
+    else:
+        params = {'q': query}
+        res = requests.get(INDEX_URL, params=params)
+        res = res.json()
+        result = res['result']
+    # 增加最大爬虫任务上限为10
+    form = {'tasks': result[:10]}
+    res = requests.post(DETAIL_URL, json=form)
+    res = res.json()
+    parser = Parser()
+    summaries = []
+    if not question:
+        question = query
+    for ta in res:
+        content = parser.parse_text(ta['content'])
+        url = ta['url']
+        summary = fast_summarize(content, question)
+        if summary:
+            summaries.append({'url': url, 'summary': summary})
+    return summaries
+
+@app.get('/john_nb_search/')
+async def john_nb_search(request: Request):
+    query = request.query_params.get('q')
+    question = request.query_params.get('question') or query
+    search_kws = enhance_search_keywords(query)
+    short_kws = []
+    long_kws = []
+    for kw in search_kws:
+        if len(kw) <= 5:
+            short_kws.append(kw)
+        else:
+            long_kws.append(kw)
+    long_kws.append(' '.join(short_kws))
+    long_kws = [kw for kw in long_kws if re.findall('[一-龥a-zA-Z]', kw)][:5]
+    query = ' '.join(long_kws)
     engine = request.query_params.get('engine')
     if engine == 'searx':
         params = {'q': query, 'format': 'json'}
@@ -123,18 +168,21 @@ async def light_search(request: Request):
     short_kws = []
     long_kws = []
     for kw in search_kws:
-        if len(kw) <= 3:
+        if len(kw) <= 5:
             short_kws.append(kw)
         else:
             long_kws.append(kw)
     long_kws.append(' '.join(short_kws))
     long_kws = [kw for kw in long_kws if re.findall('[一-龥a-zA-Z]', kw)][:5]
+    long_kws = [' '.join(long_kws)]
     final_result = []
     final_res = []
     engine = request.query_params.get('engine')
+    under_engine = request.query_params.get('under_engine')
     for kw in long_kws:
+        print(f'search keyword: {kw}')
         if engine == 'searx':
-            params = {'q': kw, 'format': 'json'}
+            params = {'q': kw, 'format': 'json', 'engine': under_engine}
             res = requests.get(SEARX_URL, params=params)
             res = res.json()
             res = res['results']
