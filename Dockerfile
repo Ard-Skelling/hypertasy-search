@@ -4,14 +4,18 @@ WORKDIR /usr/src/app
 
 COPY . .
 
-RUN echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib \
-    \ndeb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib \
-    \ndeb https://mirrors.aliyun.com/debian-security/ bullseye-security main \
-    \ndeb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main \
-    \ndeb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib \
-    \ndeb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib \
-    \ndeb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib \
-    \ndeb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib \
+RUN apt update
+
+RUN echo "deb http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse \
+    \ndeb http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse \
+    \ndeb http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse \
+    \ndeb http://mirrors.aliyun.com/ubuntu/ trusty-proposed main restricted universe multiverse \
+    \ndeb http://mirrors.aliyun.com/ubuntu/ trusty-backports main restricted universe multiverse \
+    \ndeb-src http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse \
+    \ndeb-src http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse \
+    \ndeb-src http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse \
+    \ndeb-src http://mirrors.aliyun.com/ubuntu/ trusty-proposed main restricted universe multiverse \
+    \ndeb-src http://mirrors.aliyun.com/ubuntu/ trusty-backports main restricted universe multiverse \
     " > /etc/apt/sources.list && apt update
 
 RUN pip install -r requirements.txt
