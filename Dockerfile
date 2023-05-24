@@ -14,6 +14,6 @@ RUN echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib 
     \ndeb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib \
     " > /etc/apt/sources.list && apt update
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 CMD python main.py
