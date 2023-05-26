@@ -4,8 +4,6 @@ WORKDIR /usr/src/app
 
 COPY . .
 
-RUN apt update
-
 RUN echo "deb http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse \
     \ndeb http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse \
     \ndeb http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse \

@@ -1,10 +1,7 @@
-<<<<<<< HEAD
 import sys
 from pathlib import Path
 import requests, re, json
-=======
 import requests, re, json, openai
->>>>>>> main
 import torch
 import torch.nn.functional as F
 from pydantic import BaseModel
@@ -13,15 +10,15 @@ import json
 ABS_PATH = Path(__file__).parent.parent
 sys.path.append(str(ABS_PATH))
 
-<<<<<<< HEAD
 from data_storage import RedisClient
 
 ChatGLM_API = 'http://39.104.82.158:8001'
 ChatGLM_API = 'http://47.92.115.31:9527'
-=======
+
+
 # ChatGLM_API = 'http://127.0.0.1:8001'
 ChatGLM_API = 'http://39.98.249.110:9527'
->>>>>>> main
+
 EMBEDDING_API = ChatGLM_API + '/tbc_embedding'
 
 openai.api_key = "EMPTY" # Not support yet
@@ -76,14 +73,10 @@ def fast_summarize(text, question, c_ems_md5 = ""):
     prompt = create_message(chunks, question)
     r = requests.post(ChatGLM_API, json=prompt)
     summary = r.json()['response']
-<<<<<<< HEAD
 
     if not summary:
         return '无可奉告，还是另请高明吧。'
     
-=======
-    # summary = vicuna_chat_completion(prompt)
->>>>>>> main
     return summary
 
 def answer_filter(prompt, summary):
@@ -104,7 +97,6 @@ def get_top_n(chunks, question, n, c_ems_md5:str = ""):
     form = {
         'prompt': ''
     }
-<<<<<<< HEAD
 
     # redis
     if c_ems_md5 and (c_ems_string := RedisClient().conn.get(c_ems_md5)):
@@ -121,15 +113,7 @@ def get_top_n(chunks, question, n, c_ems_md5:str = ""):
         c_ems_string = str(c_ems.tolist())
         RedisClient().conn.set(c_ems_md5, c_ems_string, ex=600)
 
-    form.update({'prompt': question})
-=======
-    form.update({'prompt': chunks})
-    res = requests.post(EMBEDDING_API, json=form)
-    res = res.json()
-    c_ems = torch.tensor(res)
-    c_ems = F.normalize(c_ems)
-    form.update({'prompt': [question]})
->>>>>>> main
+    form.update({'prompt': question}) 
     res = requests.post(EMBEDDING_API, json=form)
     res = res.json()
     q_em = torch.tensor(res)
