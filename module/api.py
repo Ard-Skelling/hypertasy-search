@@ -164,7 +164,8 @@ async def john_nb_search(request: Request):
 async def light_search(request: Request):
     query = request.query_params.get('q')
     question = request.query_params.get('question') or query
-    search_kws = enhance_search_keywords(question)
+    # search_kws = enhance_search_keywords(question)
+    search_kws = [query]
     short_kws = []
     long_kws = []
     for kw in search_kws:
