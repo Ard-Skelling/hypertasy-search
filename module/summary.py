@@ -1,11 +1,31 @@
-import requests, re, json
+import requests, re, json, openai
 import torch
 import torch.nn.functional as F
 
 
-ChatGLM_API = 'http://127.0.0.1:8001'
-# ChatGLM_API = 'http://47.92.81.63:9527'
+# ChatGLM_API = 'http://127.0.0.1:8001'
+ChatGLM_API = 'http://39.98.249.110:9527'
 EMBEDDING_API = ChatGLM_API + '/tbc_embedding'
+
+openai.api_key = "EMPTY" # Not support yet
+openai.api_base = "http://39.98.249.110:9528/v1"
+
+VICUNA_MODEL = "vicuna-13b-v1.1"
+
+# create a completion
+def vicuna_completion(prompt):
+    (k, v), = prompt.items()
+    completion = openai.Completion.create(model=VICUNA_MODEL, prompt=v, max_tokens=2048)
+    return completion.choices[0].text
+
+# create a chat completion
+def vicuna_chat_completion(prompt):
+    (k, v), = prompt.items()
+    completion = openai.ChatCompletion.create(
+        model=VICUNA_MODEL,
+        messages=[{"role": "user", "content": v}]
+    )
+    return completion.choices[0].message.content
 
 
 class Summary:
@@ -54,6 +74,7 @@ def fast_summarize(text, question):
     prompt = create_message(chunks, question)
     r = requests.post(ChatGLM_API, json=prompt)
     summary = r.json()['response']
+    # summary = vicuna_chat_completion(prompt)
     return summary
 
 def answer_filter(prompt, summary):
@@ -79,7 +100,7 @@ def get_top_n(chunks, question, n):
     res = res.json()
     c_ems = torch.tensor(res)
     c_ems = F.normalize(c_ems)
-    form.update({'prompt': question})
+    form.update({'prompt': [question]})
     res = requests.post(EMBEDDING_API, json=form)
     res = res.json()
     q_em = torch.tensor(res)
@@ -124,6 +145,7 @@ def get_final_answer(summary_list, question):
     prompt = create_prompt(summary_list, question)
     r = requests.post(ChatGLM_API, json=prompt)
     summary = r.json()['response']
+    # summary = vicuna_chat_completion(prompt)
     return summary
 
 def summarize_text(text, question):
@@ -147,6 +169,7 @@ def summarize_text(text, question):
         # )
         r = requests.post(ChatGLM_API, json=prompt)
         summary = r.json()['response']
+        # summary = vicuna_chat_completion(prompt)
         summaries.append(summary)
 
     print(f"Summarized {len(chunks)} chunks.")
@@ -156,6 +179,7 @@ def summarize_text(text, question):
 
     r = requests.post(ChatGLM_API, json=prompt)
     summary = r.json()['response']
+    # summary = vicuna_chat_completion(prompt)
     return summary
 
 def split_text(text, max_length=1024):
@@ -224,6 +248,7 @@ def enhance_search_keywords(question):
     form = {'prompt': prompt}
     r = requests.post(ChatGLM_API, json=form)
     keywords = r.json()['response']
+    # keywords = vicuna_chat_completion(form)
     keywords = re.findall('\[.*?\]', keywords, re.S)
     if not keywords:
         return [question]
