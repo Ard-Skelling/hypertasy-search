@@ -1,3 +1,11 @@
+'''
+Author: anzaikk 599957546@qq.com
+Date: 2023-05-06 20:54:22
+LastEditors: anzaikk 599957546@qq.com
+LastEditTime: 2023-05-24 14:49:56
+FilePath: /hypertasy-search/data_storage/storage.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+'''
 import sys
 from pathlib import Path
 
@@ -9,6 +17,12 @@ import threading
 from typing import List, Dict
 from config import spider_config
 from motor import motor_asyncio
+import redis
+
+# 开发环境密码
+REDIS_PASSWORD = 123123
+REDIS_HOST = "127.0.0.1"
+REDIS_PORT = 6379
 
 
 # class ClientSingleton(type):
@@ -50,6 +64,19 @@ class AsyncMongo:
     def __init__(self, config=None) -> None:
         self.config = config or spider_config.LocalStorage()
 
+class RedisClient:
+    _instance_lock = threading.Lock()
+    def __new__(cls):
+        if not hasattr(cls, "_instance"):
+            with RedisClient._instance_lock:
+                if not hasattr(cls, "_instance"):
+                    cls._instance = super().__new__(cls)
+                    cls._instance.conn_pool = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=0, password=REDIS_PASSWORD, max_connections=10)
+        return cls._instance
+
+    def __init__(self):
+        self.conn = redis.Redis(connection_pool=self.conn_pool)
+
 
     # def __init__(self, config=None) -> None:
     #     self.config = config or spider_config.LocalStorage()
@@ -69,5 +96,5 @@ class AsyncMongo:
 
 
 if __name__ == '__main__':
-    mongo = Mongo(spider_config.LocalStorage())
+    mongo = AsyncMongo(spider_config.LocalStorage())
     mongo.coll.insert_one({'name': 'John'})
