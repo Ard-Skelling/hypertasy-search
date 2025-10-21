@@ -1,10 +1,21 @@
+import sys
+from pathlib import Path
+import requests, re, json
 import requests, re, json, openai
 import torch
 import torch.nn.functional as F
+from pydantic import BaseModel
+import json
+
+ABS_PATH = Path(__file__).parent.parent
+sys.path.append(str(ABS_PATH))
+
+from data_storage import RedisClient
 
 
 # ChatGLM_API = 'http://127.0.0.1:8001'
 ChatGLM_API = 'http://39.98.249.110:9527'
+
 EMBEDDING_API = ChatGLM_API + '/tbc_embedding'
 
 openai.api_key = "EMPTY" # Not support yet
@@ -28,7 +39,7 @@ def vicuna_chat_completion(prompt):
     return completion.choices[0].message.content
 
 
-class Summary:
+class Summary(BaseModel):
     ...
 
 
@@ -38,43 +49,31 @@ class ChatGLMSummary(Summary):
     async def summarize_text(self, text, question):
         ...
 
-# def fast_summarize(text, question):
-#     if not text:
-#         return
-#     chunks = list(split_text_overlapping(text, max_length=300, overlapping=30))
-#     chunks, scores = get_top_n(chunks, question, 5)
-#     collection = []
-#     for i in range(len(scores)):
-#         if scores[i] >= 0.3:
-#             collection.append(chunks[i])
-#     chunks = '\n'.join(collection)
-#     if not chunks:
-#         return
-#     prompt = create_message(chunks, question)
-#     r = requests.post(ChatGLM_API, json=prompt)
-#     summary = r.json()['response']
-#     return summary
-
-
-# openai
-def fast_summarize(text, question):
+def fast_summarize(text, question, c_ems_md5 = ""):
     if not text:
-        return
+        return '无可奉告，还是另请高明吧。'
     chunks = list(split_text_overlapping(text, max_length=400, overlapping=20))
-    chunks, scores = get_top_n(chunks, question, 5)
+
+    chunks, scores = get_top_n(chunks, question, 5, c_ems_md5=c_ems_md5)
+
     collection = []
-    for i in range(len(scores)):
-        if scores[i] >= 0.3:
-            collection.append(chunks[i])
+    for chunk, score in zip(chunks, scores):
+        if score >= 0.3:
+            collection.append(chunk)
+            
     chunks = '\n'.join(collection)
+
     if not chunks:
-        return
+        return '无可奉告，还是另请高明吧。'
     if len(chunks) > 2048:
         return summarize_text(chunks, question)
     prompt = create_message(chunks, question)
     r = requests.post(ChatGLM_API, json=prompt)
     summary = r.json()['response']
-    # summary = vicuna_chat_completion(prompt)
+
+    if not summary:
+        return '无可奉告，还是另请高明吧。'
+    
     return summary
 
 def answer_filter(prompt, summary):
@@ -90,17 +89,28 @@ def answer_filter(prompt, summary):
         False
 
 
-def get_top_n(chunks, question, n):
+def get_top_n(chunks, question, n, c_ems_md5:str = ""):
     n = min(len(chunks), n)
     form = {
         'prompt': ''
     }
-    form.update({'prompt': chunks})
-    res = requests.post(EMBEDDING_API, json=form)
-    res = res.json()
-    c_ems = torch.tensor(res)
-    c_ems = F.normalize(c_ems)
-    form.update({'prompt': [question]})
+
+    # redis
+    if c_ems_md5 and (c_ems_string := RedisClient().conn.get(c_ems_md5)):
+        c_ems_list = json.loads(c_ems_string)
+        c_ems = torch.tensor(c_ems_list)
+    else:
+        form.update({'prompt': chunks})
+        res = requests.post(EMBEDDING_API, json=form)
+        res = res.json()
+        c_ems = torch.tensor(res)
+        c_ems = F.normalize(c_ems)
+
+        # 使用redis进行简单的存储，后面还是向量数据库存储向量好一点
+        c_ems_string = str(c_ems.tolist())
+        RedisClient().conn.set(c_ems_md5, c_ems_string, ex=600)
+
+    form.update({'prompt': question}) 
     res = requests.post(EMBEDDING_API, json=form)
     res = res.json()
     q_em = torch.tensor(res)
@@ -109,7 +119,7 @@ def get_top_n(chunks, question, n):
     top_n = torch.topk(simi, n)
     return [chunks[i] for i in top_n.indices], top_n.values.tolist()
 
-def cos_cluster(chunks):
+def cos_cluster(chunks, n):
     form = {
         'prompt': ''
     }
